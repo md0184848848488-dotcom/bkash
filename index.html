@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="bn"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>bKash Payment Gateway</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,'Noto Sans Bengali',sans-serif;background:#ffffff;color:#111111}
+
+.dp-pay-header { background:#05383B; padding:16px 20px; color:#ffffff; }
+.dp-pay-amount-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.dp-pay-amount { font-size:24px; font-weight:700; }
+
+.dp-top-controls { display:flex; align-items:center; gap:8px; }
+.dp-lang-switch { display: flex; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; }
+.dp-lang-btn { background: transparent; border: none; color: #fff; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.dp-lang-btn.active { background: #ffffff; color: #05383B; }
+
+.dp-pay-subtitle-row { display:flex; justify-content:space-between; align-items:center; font-size:14px; font-weight:600; line-height:1.4; }
+.dp-pay-service-badge { background:#ffffff; color:#05383B; padding:2px 8px; border-radius:4px; font-weight:700; font-size:12px; letter-spacing:1px; display:inline-block; }
+
+.dp-pay-content { padding:20px; background:#ffffff; }
+.dp-top-warning { color:#D9534F; font-size:15px; font-weight:700; line-height:1.5; margin-bottom:16px; }
+
+.dp-method-banner { border-radius:8px; padding:12px; display:flex; align-items:center; margin-bottom:24px; background:#D81B60 !important; }
+.dp-method-logo-circle { background:#ffffff; border-radius:50%; width:52px; height:52px; display:flex; justify-content:center; align-items:center; margin-right:14px; overflow:hidden; flex-shrink:0; }
+.dp-method-logo-circle img { width:40px !important; height:auto !important; object-fit:contain; }
+.dp-method-text { color:#ffffff; font-size:18px; font-weight:700; }
+
+.dp-input-group { margin-bottom:20px; }
+.dp-label { font-size:16px; font-weight:700; color:#111111; margin-bottom:8px; line-height:1.35; }
+.dp-asterisk { color:#D9534F; }
+.dp-instruction { font-size:15px; color:#333333; margin-bottom:10px; line-height:1.45; font-weight:500; }
+
+.dp-copy-box { background:#F2F4F4; border-radius:6px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; border: 1px solid #E0E0E0; }
+.dp-number { font-size:18px; color:#111111; font-weight:600; word-break:break-all; }
+.dp-copy-btn { display:flex; align-items:center; gap:6px; border:1.5px solid #1E6B39; background:transparent; color:#1E6B39; padding:6px 12px; border-radius:4px; font-size:15px; font-weight:700; cursor:pointer; }
+
+.dp-trx-input { width:100% !important; padding:14px !important; border:2px solid #D9534F !important; border-radius:6px !important; font-size:16px !important; color:#111111 !important; background:#ffffff !important; outline:none !important; }
+.dp-trx-input.filled { border-color:#D81B60 !important; }
+
+.dp-submit-btn { display:block; width:80%; margin:0 auto 20px auto; padding:12px; border:1px solid #cccccc; border-radius:6px; background:#f8f9fa; color:#999999; font-size:17px; font-weight:600; text-align:center; cursor:not-allowed; }
+.dp-submit-btn.active:not(:disabled) { color:#111111; border-color:#999999; cursor:pointer; background:#ffffff; }
+
+.dp-bottom-alert-title { font-weight:700; font-size:15px; color:#111111; margin-bottom:4px; }
+.dp-bottom-alert-red { color:#D9534F !important; font-weight:700; font-size:15px; margin-bottom:12px; line-height:1.5; display:inline-block; transform-origin:left center; animation: dpPulseAlert 1.1s infinite alternate ease-in-out !important; }
+@keyframes dpPulseAlert { 0% { transform: scale(1); } 100% { transform: scale(1.04); } }
+
+.custom-popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 9999; }
+.custom-popup-box { background: #ffffff; color: #111111; padding: 25px 20px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+.custom-popup-icon { font-size: 40px; color: #28a745; margin-bottom: 10px; }
+.custom-popup-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #05383B; }
+.custom-popup-desc { font-size: 14px; color: #555; margin-bottom: 20px; }
+.custom-popup-btn { background: #D81B60; color: #fff; border: none; padding: 10px 20px; font-size: 15px; font-weight: 700; border-radius: 6px; cursor: pointer; width: 100%; }
+</style>
+
+<!-- Firebase v8 Scripts -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head><body>
+
+<div id="user-panel">
+  <div class="dp-pay-header">
+    <div class="dp-pay-amount-row">
+      <div class="dp-pay-amount" id="pay-display-amount">BDT 0.00</div>
+      <div class="dp-top-controls">
+        <div class="dp-lang-switch">
+          <button class="dp-lang-btn active" id="lang-en" onclick="setLanguage('en')">EN</button>
+          <button class="dp-lang-btn" id="lang-bn" onclick="setLanguage('bn')">বাংলা</button>
+        </div>
+      </div>
+    </div>
+    <div class="dp-pay-subtitle-row">
+      <span id="pay-header-msg">কম বা বেশি সেন্ডমানি করবেন না</span>
+      <div><span class="dp-pay-service-badge" id="pay-service-name">PAY SERVICE</span></div>
+    </div>
+  </div>
+
+  <div class="dp-pay-content">
+    <div class="dp-top-warning" id="pay-warn-top-txt">পরিমাণ পরিবর্তন করলে ক্রেডিট পাবেন না (BDT)।</div>
+
+    <div class="dp-method-banner">
+      <div class="dp-method-logo-circle">
+        <img src="https://i.ibb.co.com/7dXh470g/bkash-logo-free-vector.jpg" alt="bKash Logo">
+      </div>
+      <div class="dp-method-text">BKASH Deposit</div>
+    </div>
+    
+    <div class="dp-input-group">
+      <div class="dp-label" id="lbl-wallet">Wallet No<span class="dp-asterisk">*</span></div>
+      <div class="dp-instruction" id="pay-wallet-desc">এই বিকাশ নাম্বারে শুধুমাত্র সেন্ডমানি গ্রহণ করা হয়</div>
+      <div class="dp-copy-box">
+        <span class="dp-number" id="pay-wallet-no">Loading...</span>
+        <button class="dp-copy-btn" type="button" onclick="copyTextPremium('pay-wallet-no', this)">
+          <span>📋 কপি</span>
+        </button>
+      </div>
+    </div>
+    
+    <div class="dp-input-group">
+      <div class="dp-label" id="pay-trx-label">সেন্ডমানি এর TrxID নাম্বারটি লিখুন<br><span class="dp-asterisk">*(প্রয়োজন)</span></div>
+      <input type="text" id="pay-trx-id" class="dp-trx-input" placeholder="TrxID অবশ্যই পূরণ করতে হবে!" oninput="checkTrxInput()" autocomplete="off">
+    </div>
+    
+    <button class="dp-submit-btn" id="pay-submit-btn" type="button" onclick="submitDepositRequest()" disabled>নিশ্চিত</button>
+    
+    <div class="dp-bottom-alert">
+      <div class="dp-bottom-alert-title" id="lbl-warning-title">সতর্কতা:</div>
+      <div class="dp-bottom-alert-red" id="lbl-warning-desc">লেনদেন আইডি সঠিকভাবে পূরণ করতে হবে, অন্যথায় স্কোর ব্যর্থ হবে !</div>
+      <div class="dp-bottom-alert-desc" id="lbl-footer-desc">বিকাশ ওয়ালেটে সেন্ডমানি করেছেন কিনা নিশ্চিত হন।</div>
+    </div>
+  </div>
+</div>
+
+<div class="custom-popup-overlay" id="successPopup">
+  <div class="custom-popup-box">
+    <div class="custom-popup-icon">✅</div>
+    <div class="custom-popup-title">অভিনন্দন!</div>
+    <div class="custom-popup-desc">আপনার পেমেন্ট সফলভাবে জমা হয়েছে!</div>
+    <button class="custom-popup-btn" onclick="closePopup()">ঠিক আছে</button>
+  </div>
+</div>
+
+<script>
+    let currentLang = 'bn';
+    let baseAmountNum = 0;
+    let walletNumber = 'Loading...';
+    let serviceName = 'PAY SERVICE';
+
+    // Firebase Initialization
+    const firebaseConfig = {
+      apiKey: "AIzaSyCugZlnwTq0-vJGLvN3TiCMbPrtgkJUVhA",
+      authDomain: "nozrulexpresstopup.firebaseapp.com",
+      databaseURL: "https://nozrulexpresstopup-default-rtdb.firebaseio.com",
+      projectId: "nozrulexpresstopup",
+      storageBucket: "nozrulexpresstopup.firebasestorage.app",
+      messagingSenderId: "947108346760",
+      appId: "1:947108346760:web:411ab418b320deeea0183d"
+    };
+    
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const database = firebase.database();
+
+    // Fetch Wallet Number from Firebase
+    database.ref('gateway_settings/bkash').on('value', (snapshot) => {
+      if (snapshot.exists()) {
+        walletNumber = snapshot.val();
+        const walletEl = document.getElementById('pay-wallet-no');
+        if(walletEl) walletEl.textContent = walletNumber;
+      }
+    });
+
+    // Extract Amount and Service from URL parameters instantly
+    function loadUrlParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        let rawAmount = urlParams.get('amount') || urlParams.get('Amount') || urlParams.get('price') || urlParams.get('taka');
+        
+        if (rawAmount) {
+            let parsed = parseFloat(rawAmount);
+            if (!isNaN(parsed) && parsed > 0) {
+                baseAmountNum = parsed;
+            }
+        }
+        
+        let rawService = urlParams.get('service') || urlParams.get('Service');
+        if (rawService) {
+            serviceName = rawService;
+        }
+    }
+
+    window.setLanguage = function(lang) {
+        currentLang = lang;
+        document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+        document.getElementById('lang-bn').classList.toggle('active', lang === 'bn');
+        updateTexts();
+    };
+
+    function updateTexts() {
+        loadUrlParams(); // প্রতিবার রিফ্রেশ বা আপডেটের সময় প্যারামিটার চেক করবে
+        const formattedBase = baseAmountNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        const amountEl = document.getElementById('pay-display-amount');
+        if(amountEl) amountEl.textContent = `BDT ${formattedBase}`;
+        
+        const serviceEl = document.getElementById('pay-service-name');
+        if(serviceEl) serviceEl.textContent = serviceName;
+
+        if (currentLang === 'en') {
+            document.getElementById('pay-warn-top-txt').textContent = `Do not change the amount, you won't get credit (BDT ${formattedBase}).`;
+            document.getElementById('pay-header-msg').textContent = "Do not send more or less money";
+            document.getElementById('lbl-wallet').innerHTML = `Wallet No <span style="font-size:11px; background:#D81B60; color:#fff; padding:2px 6px; border-radius:4px; margin-left:6px;">Personal</span><span class="dp-asterisk">*</span>`;
+            document.getElementById('pay-wallet-desc').textContent = "Only Send-Money is accepted in this bKash number";
+            document.getElementById('pay-trx-label').innerHTML = `Enter Send-Money TrxID<br><span class="dp-asterisk">*(Required)</span>`;
+            document.getElementById('pay-trx-id').placeholder = "TrxID must be filled!";
+            document.getElementById('pay-submit-btn').textContent = "Confirm";
+            document.getElementById('lbl-warning-title').textContent = "Warning:";
+            document.getElementById('lbl-warning-desc').textContent = "Transaction ID must be filled correctly, otherwise score will fail!";
+            document.getElementById('lbl-footer-desc').textContent = "Make sure you have sent money to the bKash deposit wallet.";
+        } else {
+            document.getElementById('pay-warn-top-txt').textContent = `আপনি যদি টাকার পরিমাণ পরিবর্তন করেন (BDT ${formattedBase}) আপনি ক্রেডিট পেতে সক্ষম হবেন না।`;
+            document.getElementById('pay-header-msg').textContent = "কম বা বেশি সেন্ডমানি করবেন না";
+            document.getElementById('lbl-wallet').innerHTML = `Wallet No <span style="font-size:11px; background:#D81B60; color:#fff; padding:2px 6px; border-radius:4px; margin-left:6px;">পার্সোনাল</span><span class="dp-asterisk">*</span>`;
+            document.getElementById('pay-wallet-desc').textContent = "এই বিকাশ নাম্বারে শুধুমাত্র সেন্ডমানি গ্রহণ করা হয়";
+            document.getElementById('pay-trx-label').innerHTML = `সেন্ডমানি এর TrxID নাম্বারটি লিখুন<br><span class="dp-asterisk">*(প্রয়োজন)</span>`;
+            document.getElementById('pay-trx-id').placeholder = "TrxID অবশ্যই পূরণ করতে হবে!";
+            document.getElementById('pay-submit-btn').textContent = "নিশ্চিত";
+            document.getElementById('lbl-warning-title').textContent = "সতর্কতা:";
+            document.getElementById('lbl-warning-desc').textContent = "লেনদেন আইডি সঠিকভাবে পূরণ করতে হবে, অন্যথায় স্কোর ব্যর্থ হবে !";
+            document.getElementById('lbl-footer-desc').textContent = "বিকাশ ওয়ালেটে সেন্ডমানি করেছেন কিনা নিশ্চিত হন।";
+        }
+    }
+
+    // Advanced Copy Function with Fallback
+    window.copyTextPremium = async function(elementId, btnElement) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        const textToCopy = el.textContent.trim();
+        let copied = false;
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(textToCopy);
+                copied = true;
+            }
+        } catch (e) {
+            copied = false;
+        }
+
+        if (!copied) {
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                textarea.style.position = 'fixed';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                copied = document.execCommand('copy');
+                document.body.removeChild(textarea);
+            } catch (err) {
+                copied = false;
+            }
+        }
+
+        if (copied && btnElement) {
+            const originalHTML = btnElement.innerHTML;
+            btnElement.innerHTML = `<span>✓ ${currentLang === 'en' ? 'Copied' : 'কপি হয়েছে'}</span>`;
+            setTimeout(() => { btnElement.innerHTML = originalHTML; }, 2000);
+        }
+    };
+
+    window.checkTrxInput = function() {
+        const input = document.getElementById('pay-trx-id');
+        const btn = document.getElementById('pay-submit-btn');
+        if (!input) return;
+        input.value = input.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const ok = input.value.trim().length > 0;
+        ok ? input.classList.add('filled') : input.classList.remove('filled');
+        if (btn) { btn.disabled = !ok; btn.classList.toggle('active', ok); }
+    };
+
+    window.submitDepositRequest = function() {
+        if (!document.getElementById('pay-trx-id').value.trim()) return;
+        document.getElementById('successPopup').style.display = 'flex';
+    };
+
+    window.closePopup = function() {
+        document.getElementById('successPopup').style.display = 'none';
+        document.getElementById('pay-trx-id').value = '';
+        checkTrxInput();
+    };
+
+    // পেজ পুরোপুরি লোড হওয়ার সাথে সাথে এবং ব্যাক-ফরোয়ার্ড হলেও কাজ করবে
+    window.addEventListener('load', () => {
+        loadUrlParams();
+        updateTexts();
+    });
+</script>
+</body></html>
